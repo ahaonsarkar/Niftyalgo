@@ -1163,9 +1163,71 @@ def main():
             print(f"{'='*60}")
             print(backtest_df.to_string(index=False))
     
+    # 17. Predict next week's probability (based on the most recent data)
     print(f"\n{'='*60}")
-    print(f"Pipeline complete! Results saved to: {RESULTS_DIR.resolve()}")
+    print("NEXT WEEK PREDICTION (From Today's Data)".center(60))
     print(f"{'='*60}")
+
+    # Download latest data (up to today)
+    today = datetime.today().strftime("%Y-%m-%d")
+    df_latest = download_data(start="2023-01-01", end=today)
+    if USE_WEEKLY:
+        df_latest = df_latest.resample('W').last()
+
+    # Apply feature engineering
+    df_latest_feat = feature_engineering(df_latest, macro_data if ENABLE_MACRO_FEATURES else None)
+
+    # Keep only selected features
+    latest_features_df = df_latest_feat[selected_features].tail(1)
+    latest_scaled = scaler.transform(latest_features_df)
+
+    # Get latest available date (before feature engineering reset index)
+    if isinstance(df_latest.index, pd.DatetimeIndex):
+        last_date = df_latest.index[-1]
+    else:
+        last_date = datetime.today()
+
+    # Select model (use ensemble if available)
+    if 'Ensemble' in results:
+        selected_model_name = 'Ensemble'
+        weights = results['Ensemble']['weights']
+        ensemble_models = {name: res for name, res in results.items() if res['probs'] is not None}
+
+        next_week_prob = 0
+        total_weight = sum(weights.values())
+        for name, weight in weights.items():
+            if name in ensemble_models:
+                model = ensemble_models[name]['model']
+                try:
+                    prob = model.predict_proba(latest_scaled)[:, 1][0]
+                except:
+                    decision = model.decision_function(latest_scaled)
+                    prob = (decision - decision.min()) / (decision.max() - decision.min())
+                    prob = prob[0]
+                next_week_prob += (weight / total_weight) * prob
+    else:
+        selected_model_name = best_name
+        model = results[best_name]['model']
+        next_week_prob = model.predict_proba(latest_scaled)[:, 1][0]
+
+    # Format result
+    prob_percent = next_week_prob * 100
+    down_percent = 100 - prob_percent
+    direction = "🟩 GREEN (Up)" if prob_percent >= 50 else "🟥 RED (Down)"
+
+    print("\n💹  NIFTY Next Week Prediction Summary")
+    print(f"📅  Latest Data Date: {last_date.strftime('%Y-%m-%d')}")
+    print(f"🔍  Using Model: {selected_model_name}")
+    print(f"📊  Probability of Closing in Green Next Week: {prob_percent:.2f}%")
+    print(f"📉  Probability of Closing in Red Next Week: {down_percent:.2f}%")
+    print(f"🧭  Predicted Direction: {direction}")
+    print(f"{'='*60}")
+
+    # Save prediction to file
+    with open(RESULTS_DIR / "next_week_prediction.txt", "a") as f:
+        f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {selected_model_name} | {prob_percent:.2f}% Up | {down_percent:.2f}% Down | {direction}\n")
+
+    input("👉 Press [Enter] to complete the pipeline and view saved results... ")
 
 if __name__ == "__main__":
     main() 
