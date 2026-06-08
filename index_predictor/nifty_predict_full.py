@@ -402,6 +402,7 @@ def train_models(X_train, y_train, X_test, y_test):
         )))
     
     if LIGHTGBM_AVAILABLE:
+<<<<<<< HEAD
         models.append(("LightGBM", lgb.LGBMClassifier(
             random_state=RANDOM_STATE, 
             n_estimators=200,
@@ -409,6 +410,9 @@ def train_models(X_train, y_train, X_test, y_test):
             num_leaves=15,
             max_depth=4
         )))
+=======
+        models.append(("LightGBM", lgb.LGBMClassifier(random_state=RANDOM_STATE, n_estimators=200)))
+>>>>>>> origin/main
     
     for name, model in models:
         print(f"\nTraining {name}...")
@@ -975,6 +979,7 @@ def save_results_summary(results, feature_cols):
     # Save selected features
     pd.DataFrame({'Feature': feature_cols}).to_csv(RESULTS_DIR / "selected_features.csv", index=False)
 
+<<<<<<< HEAD
 class ConformalPredictionModule:
     def __init__(self, alpha=0.10, gamma=0.005, results_dir="results_nifty_enhanced/cp_results"):
         self.alpha = alpha
@@ -1171,6 +1176,8 @@ class EnsembleWrapper:
         return ret
     def predict(self, X): return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
 
+=======
+>>>>>>> origin/main
 # ---------------------------
 # Main Pipeline
 # ---------------------------
@@ -1225,6 +1232,7 @@ def main():
     X, y, feature_cols = prepare_X_y(df_feat)
     print(f"\nInitial features: {len(feature_cols)}")
     
+<<<<<<< HEAD
     # 6. Train/calib/test split (time-ordered) 80/10/10
     total_rows = len(X)
     train_end = int(total_rows * 0.80)
@@ -1242,6 +1250,15 @@ def main():
     dates_test = df_feat.index[calib_end:]
     
     print(f"Train samples: {len(X_train)}, Calib samples: {len(X_calib)}, Test samples: {len(X_test)}")
+=======
+    # 6. Train/test split (time-ordered)
+    split_index = int((1 - TEST_SIZE) * len(X))
+    X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]
+    y_train, y_test = y.iloc[:split_index], y.iloc[split_index:]
+    dates_test = df_feat.index[split_index:]
+    
+    print(f"Train samples: {len(X_train)}, Test samples: {len(X_test)}")
+>>>>>>> origin/main
     
     # 7. Feature selection
     selected_features, all_importances = select_features_by_importance(
@@ -1249,13 +1266,19 @@ def main():
     )
     
     X_train = X_train[selected_features]
+<<<<<<< HEAD
     X_calib = X_calib[selected_features]
+=======
+>>>>>>> origin/main
     X_test = X_test[selected_features]
     
     # 8. Scale features
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
+<<<<<<< HEAD
     X_calib_scaled = scaler.transform(X_calib)
+=======
+>>>>>>> origin/main
     X_test_scaled = scaler.transform(X_test)
     
     # Save scaler
@@ -1289,6 +1312,7 @@ def main():
         with open(RESULTS_DIR / "ensemble_weights.txt", 'w') as f:
             f.write(str(ensemble_result['weights']))
         print("\nSaved ensemble weights")
+<<<<<<< HEAD
         
     # --- CONFORMAL PREDICTION MODULE ---
     best_f1_name = max({k: v for k, v in results.items() if k != 'Ensemble'}.keys(), key=lambda k: results[k]['f1'])
@@ -1311,6 +1335,8 @@ def main():
         dates_test=dates_test,
         vix_series=macro_data['VIX'] if macro_data and 'VIX' in macro_data else None
     )
+=======
+>>>>>>> origin/main
     
     # 15. Plot predictions for best model (last 200 samples)
     best_pred = results[best_name]['pred']
@@ -1331,12 +1357,21 @@ def main():
         
         # Get test prices and dates from df_feat (dates should be preserved now)
         if 'Close' in df_feat.columns:
+<<<<<<< HEAD
             test_prices = df_feat['Close'].iloc[calib_end:]
             test_prices_index = df_feat.index[calib_end:]
         else:
             # Fallback: use original df if Close was dropped
             test_prices = df['Close'].iloc[calib_end:]
             test_prices_index = df.index[calib_end:]
+=======
+            test_prices = df_feat['Close'].iloc[split_index:]
+            test_prices_index = df_feat.index[split_index:]
+        else:
+            # Fallback: use original df if Close was dropped
+            test_prices = df['Close'].iloc[split_index:]
+            test_prices_index = df.index[split_index:]
+>>>>>>> origin/main
         
         # Ensure test_prices is a Series with proper index
         if not isinstance(test_prices, pd.Series):
